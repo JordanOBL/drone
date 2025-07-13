@@ -1,48 +1,56 @@
-# Makefile for STM32F103 simulation in QEMU
-# Toolchain Prefix
+# Toolchain
 CC = arm-none-eabi-gcc
 OBJCOPY = arm-none-eabi-objcopy
+
+# Flags
 CFLAGS = -mcpu=cortex-m3 -mthumb -nostdlib -nostartfiles -ffreestanding -Wall
 LDFLAGS = -T linker.ld -nostdlib -Wl,--gc-sections
 
-# Files
-SRC = main.c
-PRE = main.i
-ASM = main.s
-OBJ = main.o
+# Sources
+SRC_C = main.c startup.c
+
+# Object files
+OBJ_C = $(SRC_C:.c=.o)
+OBJ = $(OBJ_C) $(OBJ_S)
+
+# Outputs
 ELF = main.elf
 BIN = main.bin
+PRE = main.i
+ASM = main.s
 
-all: $(PRE) $(ASM) $(OBJ) $(ELF) $(BIN)
+# Default target
+all: $(BIN)
 
-# Preprocessing: expands includes and macros
-$(PRE): $(SRC)
+# Preprocess main.c
+$(PRE): $(SRC_C)
 	$(CC) $(CFLAGS) -E $< -o $@
 
-# Compilation to assembly
-$(ASM): $(SRC)
+# Generate assembly from main.c
+$(ASM): $(SRC_C)
 	$(CC) $(CFLAGS) -S $< -o $@
 
-# Compilation to object file
-$(OBJ): $(SRC)
+# Compile C source files to object files
+$(OBJ_C): %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Linking to produce ELF
+# Compile assembly source files to object files
+$(OBJ_S): %.o: %.s
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Link object files into an ELF executable
 $(ELF): $(OBJ)
 	$(CC) $(LDFLAGS) -o $@ $^
 
-# Binary file for flash
+# Convert ELF to binary
 $(BIN): $(ELF)
 	$(OBJCOPY) -O binary $< $@
-
-#Preprocess return '.i' (expand C #includes #headers into full paths within .c file)
-preprocess:
-	$(CC) -E $(SRC) -o $(PRE)
-# Clean up
-clean:
-	rm -f $(PRE) $(ASM) $(OBJ) $(ELF) $(BIN)
 
 # Run with QEMU
 run: $(BIN)
 	qemu-system-arm -M stm32-p103 -nographic -kernel $(BIN)
+
+# Clean up build artifacts
+clean:
+	rm -f $(OBJ) $(ELF) $(BIN) $(ASM) $(PRE)
 

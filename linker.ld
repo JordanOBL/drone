@@ -1,23 +1,26 @@
+ENTRY(Reset_Handler)
+
 MEMORY {
   FLASH(rx): ORIGIN = 0x08000000, LENGTH = 64K
   RAM(rwx) : ORIGIN = 0x20000000, LENGTH = 20K
 }
 
-SECTIONS {
+SECTIONS {  /* Place vector table and .text in FLASH */
+    .isr_vector : {
+    KEEP(*(.isr_vector))
+  } > FLASH
   .text : {
-    . = ALIGN(4);
-    *(.isr_vector) /* interrupt vector table */
     *(.text*) /* all code */
     *(.rodata*) /* read only dta */
   } > FLASH /*place all into flash*/
 
-  .data : {
-    _data_start = .;  /* symbol: RAM start of .data */
-    *(.data*)  /* initialized variables */
-    _data_end = .; /* symbol: RAM end of .data */
-  } > RAM AT > FLASH  /* load from FLASH to RAM */
+ .data : AT(LOADADDR(.text) + SIZEOF(.text)) {
+    _data_load_start = LOADADDR(.data);
+    _data_start = .;
+    *(.data*)
+    _data_end = .;
+  } > RAM
 
-  _data_load_start = LOADADDR(.data);/* symbol: Flash source address */
 
   .bss : {
     _bss_start = .; /* symbol: start of uninitialized section */
@@ -25,9 +28,10 @@ SECTIONS {
     *(COMMON)         /* common symbols */
     _bss_end = .; /* symbol: end of bss */
   } > RAM             /* placed in RAM */
-
+    . = ALIGN(4);
+  _stack_top = ORIGIN(RAM) + LENGTH(RAM);
+  PROVIDE(__stack_top = _stack_top);
 }
 
 
- _stack_top = ORIGIN(RAM) + LENGTH(RAM);
-  PROVIDE(__stack_top = _stack_top);
+
